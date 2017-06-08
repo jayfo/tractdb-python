@@ -323,3 +323,50 @@ class TestServerDocuments(unittest.TestCase):
         self.documentAdmin.delete_document(
             doc_id
         )
+
+    def test_update_document_parameters(self):
+        # Create it
+        result = self.documentAdmin.create_document(
+            TEST_CONTENT,
+            TEST_DOC_ID
+        )
+        doc_id = result['id']
+        doc_rev = result['rev']
+
+        # Read it
+        doc = self.documentAdmin.get_document(
+            doc_id
+        )
+
+        # Create an updated document
+        doc_updated = dict(doc)
+        doc_updated.update(TEST_UPDATED_CONTENT)
+
+        # Update it with a mismatched '_id' vs doc_id, should fail
+        with self.assertRaises(Exception):
+            self.documentAdmin.update_document(
+                doc_updated,
+                doc_id='wrong'
+            )
+
+        # Update it with a mismatched '_rev' vs doc_rev, should fail
+        with self.assertRaises(Exception):
+            self.documentAdmin.update_document(
+                doc_updated,
+                doc_rev='wrong'
+            )
+
+        # Remove the internal fields and update using our parameters
+        del doc_updated['_id']
+        del doc_updated['_rev']
+
+        self.documentAdmin.update_document(
+            doc_updated,
+            doc_id=doc_id,
+            doc_rev=doc_rev
+        )
+
+        # Delete it
+        self.documentAdmin.delete_document(
+            doc_id
+        )

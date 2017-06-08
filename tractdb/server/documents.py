@@ -92,7 +92,7 @@ class DocumentsAdmin(object):
         # Return as a dict, not our CouchDB internal object
         return dict(doc)
 
-    def update_document(self, doc):
+    def update_document(self, doc, doc_id=None, doc_rev=None):
         """ Update a doc.
         """
         server = self._couchdb_server
@@ -110,15 +110,53 @@ class DocumentsAdmin(object):
 
         database = server[dbname]
 
+        # Must provide either '_id' or doc_id, if both they need to match
+        if '_id' in doc:
+            if doc_id is not None:
+                if doc_id != doc['_id']:
+                    raise Exception(
+                        'Mismatched parameters doc[\'_id\']="{:s}" and doc_id="{:s}"'.format(
+                            doc['_id'],
+                            doc_id
+                        )
+                    )
+        else:
+            if doc_id is None:
+                raise Exception(
+                    'Missing parameter doc[\'_id\'] or doc_id'
+                )
+
+            doc = dict(doc)
+            doc['_id'] = doc_id
+
+        # Must provide either '_rev' or doc_rev, if both they need to match
+        if '_rev' in doc:
+            if doc_rev is not None:
+                if doc_rev != doc['_rev']:
+                    raise Exception(
+                        'Mismatched parameters doc[\'_rev\']="{:s}" and doc_rev="{:s}"'.format(
+                            doc['_rev'],
+                            doc_id
+                        )
+                    )
+        else:
+            if doc_rev is None:
+                raise Exception(
+                    'Missing parameter doc[\'_rev\'] or doc_rev'
+                )
+
+            doc = dict(doc)
+            doc['_rev'] = doc_rev
+
         # Update the document
         try:
-            doc_id, doc_rev = database.save(doc)
+            new_doc_id, new_doc_rev = database.save(doc)
         except couchdb.http.ResourceConflict:
-            raise Exception('Document "{:s} was modified.'.format(doc['_id']))
+            raise Exception('Revision conflict for document "{:s}".'.format(doc['_id']))
 
         return {
-            'id': doc_id,
-            'rev': doc_rev
+            'id': new_doc_id,
+            'rev': new_doc_rev
         }
 
     def delete_document(self, doc_id):

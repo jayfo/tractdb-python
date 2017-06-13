@@ -5,6 +5,7 @@ couchdb
 invoke=={{ python.invoke_version }}
 jinja2
 nose
+pillow
 pip-tools
 pyyaml
 requests

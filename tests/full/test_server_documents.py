@@ -1,4 +1,6 @@
 import base.docker.docker_commands
+import io
+import PIL.Image
 import tractdb.server.accounts
 import tractdb.server.documents
 import unittest
@@ -22,6 +24,8 @@ TEST_UPDATED_AGAIN_CONTENT = {
     'text': 'some newest content added',
     'date': '03/20/2017'
 }
+
+TEST_IMAGE = PIL.Image.new('RGBA', (1024, 1024))
 
 
 def setup():
@@ -60,6 +64,64 @@ class TestServerDocuments(unittest.TestCase):
     def tearDown(self):
         if TEST_ACCOUNT in self.accountAdmin.list_accounts():
             self.accountAdmin.delete_account(TEST_ACCOUNT)
+
+    def test_create_get_delete_attachment(self):
+        # create a document
+        result = self.documentAdmin.create_document(
+            TEST_CONTENT,
+            TEST_DOC_ID
+        )
+        doc_id = result['id']
+        self.assertEquals(doc_id, TEST_DOC_ID)
+
+        # get that document
+        doc = self.documentAdmin.get_document(doc_id)
+
+        # create an image
+        image_bytes = io.BytesIO()
+        TEST_IMAGE.save(image_bytes, 'png')
+        image_bytes.seek(0)
+
+        # attach the image
+        self.documentAdmin.create_attachment(
+            doc,
+            'test_image',
+            image_bytes,
+            content_type='image/png'
+        )
+
+        # list the attachments
+        doc = self.documentAdmin.get_document(doc_id)
+
+        self.assertIn(
+            'test_image',
+            doc['_attachments'].keys()
+        )
+
+        # get the attachment
+        result = self.documentAdmin.get_attachment(doc_id, 'test_image')
+        self.assertEqual(
+            'image/png',
+            result['content_type']
+        )
+        self.assertEqual(
+            image_bytes.getvalue(),
+            result['content'].getvalue()
+        )
+
+        # delete attachment
+        self.documentAdmin.delete_attachment(doc_id, 'test_image')
+
+        doc = self.documentAdmin.get_document(doc_id)
+
+        self.assertNotIn(
+            '_attachments',
+            doc
+        )
+
+        self.documentAdmin.delete_document(
+            doc_id
+        )
 
     def test_create_get_delete_document(self):
         self.assertNotIn(
@@ -318,6 +380,53 @@ class TestServerDocuments(unittest.TestCase):
             self.documentAdmin.update_document(
                 doc_updated_again
             )
+
+        # Delete it
+        self.documentAdmin.delete_document(
+            doc_id
+        )
+
+    def test_update_document_parameters(self):
+        # Create it
+        result = self.documentAdmin.create_document(
+            TEST_CONTENT,
+            TEST_DOC_ID
+        )
+        doc_id = result['id']
+        doc_rev = result['rev']
+
+        # Read it
+        doc = self.documentAdmin.get_document(
+            doc_id
+        )
+
+        # Create an updated document
+        doc_updated = dict(doc)
+        doc_updated.update(TEST_UPDATED_CONTENT)
+
+        # Update it with a mismatched '_id' vs doc_id, should fail
+        with self.assertRaises(Exception):
+            self.documentAdmin.update_document(
+                doc_updated,
+                doc_id='wrong'
+            )
+
+        # Update it with a mismatched '_rev' vs doc_rev, should fail
+        with self.assertRaises(Exception):
+            self.documentAdmin.update_document(
+                doc_updated,
+                doc_rev='wrong'
+            )
+
+        # Remove the internal fields and update using our parameters
+        del doc_updated['_id']
+        del doc_updated['_rev']
+
+        self.documentAdmin.update_document(
+            doc_updated,
+            doc_id=doc_id,
+            doc_rev=doc_rev
+        )
 
         # Delete it
         self.documentAdmin.delete_document(

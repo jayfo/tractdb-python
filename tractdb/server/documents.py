@@ -14,6 +14,35 @@ class DocumentsAdmin(object):
         self._couchdb_user = couchdb_user
         self._couchdb_user_password = couchdb_user_password
 
+    def create_attachment(self, doc, name, content, content_type=None):
+        """ Add an attachment to a document.
+        """
+        server = self._couchdb_server
+        database_users = server['_users']
+        docid_user = 'org.couchdb.user:{:s}'.format(self._couchdb_user)
+        dbname = '{:s}_tractdb'.format(self._couchdb_user)
+
+        # Confirm the user exists
+        if docid_user not in database_users:
+            raise Exception('User "{:s}" does not exist.'.format(self._couchdb_user))
+
+        # Confirm the database exists
+        if dbname not in server:
+            raise Exception('Database "{:s}" does not exist.'.format(dbname))
+
+        # Get the database for the user
+        database = server[dbname]
+
+        # Add the attachment
+        doc = dict(doc)
+        database.put_attachment(doc, content, filename=name, content_type=content_type)
+
+        # Return the updated revision
+        return {
+            'id': doc['_id'],
+            'rev': doc['_rev']
+        }
+
     def create_document(self, doc, doc_id=None):
         """ Add a document to a database.
         """
@@ -48,6 +77,58 @@ class DocumentsAdmin(object):
             'rev': created_rev
         }
 
+    def delete_attachment(self, doc_id, name):
+        """ Delete an attachment.
+        """
+        server = self._couchdb_server
+        database_users = server['_users']
+        docid_user = 'org.couchdb.user:{:s}'.format(self._couchdb_user)
+        dbname = '{:s}_tractdb'.format(self._couchdb_user)
+
+        # Confirm the user exists
+        if docid_user not in database_users:
+            raise Exception('User "{:s}" does not exist.'.format(self._couchdb_user))
+
+        # Confirm the database exists
+        if dbname not in server:
+            raise Exception('Database "{:s}" does not exist.'.format(dbname))
+
+        database = server[dbname]
+
+        # Confirm the document exists
+        if doc_id not in database:
+            raise Exception('Document "{:s}" does not exist.'.format(doc_id))
+
+        doc = database[doc_id]
+
+        # Delete the attachment
+        database.delete_attachment(doc, filename=name)
+
+    def delete_document(self, doc_id):
+        """ Delete a doc.
+        """
+        server = self._couchdb_server
+        database_users = server['_users']
+        docid_user = 'org.couchdb.user:{:s}'.format(self._couchdb_user)
+        dbname = '{:s}_tractdb'.format(self._couchdb_user)
+
+        # Confirm the user exists
+        if docid_user not in database_users:
+            raise Exception('User "{:s}" does not exist.'.format(self._couchdb_user))
+
+        # Confirm the database exists
+        if dbname not in server:
+            raise Exception('Database "{:s}" does not exist.'.format(dbname))
+
+        database = server[dbname]
+
+        # Confirm the document exists
+        if doc_id not in database:
+            raise Exception('Document "{:s}" does not exist.'.format(doc_id))
+
+        # Delete it
+        del database[doc_id]
+
     def exists_document(self, doc_id):
         server = self._couchdb_server
         database_users = server['_users']
@@ -66,6 +147,40 @@ class DocumentsAdmin(object):
 
         # Check whether the document exists
         return doc_id in database
+
+    def get_attachment(self, doc_id, name):
+        server = self._couchdb_server
+        database_users = server['_users']
+        docid_user = 'org.couchdb.user:{:s}'.format(self._couchdb_user)
+        dbname = '{:s}_tractdb'.format(self._couchdb_user)
+
+        # Confirm the user exists
+        if docid_user not in database_users:
+            raise Exception('User "{:s}" does not exist.'.format(self._couchdb_user))
+
+        # Confirm the database exists
+        if dbname not in server:
+            raise Exception('Database "{:s}" does not exist.'.format(dbname))
+
+        database = server[dbname]
+
+        # Confirm the document exists
+        if doc_id not in database:
+            raise Exception('Document "{:s}" does not exist.'.format(doc_id))
+
+        doc = database[doc_id]
+
+        # Confirm the attachment exists
+        if name not in doc['_attachments'].keys():
+            raise Exception('Attachment "{:s}" does not exist on document "{:s}".'.format(name, doc_id))
+
+        # Get the attachment
+        content = database.get_attachment(doc_id, name)
+
+        return {
+            'content': content,
+            'content_type': doc['_attachments'][name]['content_type']
+        }
 
     def get_document(self, doc_id):
         server = self._couchdb_server
@@ -92,7 +207,7 @@ class DocumentsAdmin(object):
         # Return as a dict, not our CouchDB internal object
         return dict(doc)
 
-    def update_document(self, doc):
+    def update_document(self, doc, doc_id=None, doc_rev=None):
         """ Update a doc.
         """
         server = self._couchdb_server
@@ -110,41 +225,54 @@ class DocumentsAdmin(object):
 
         database = server[dbname]
 
+        # Must provide either '_id' or doc_id, if both they need to match
+        if '_id' in doc:
+            if doc_id is not None:
+                if doc_id != doc['_id']:
+                    raise Exception(
+                        'Mismatched parameters doc[\'_id\']="{:s}" and doc_id="{:s}"'.format(
+                            doc['_id'],
+                            doc_id
+                        )
+                    )
+        else:
+            if doc_id is None:
+                raise Exception(
+                    'Missing parameter doc[\'_id\'] or doc_id'
+                )
+
+            doc = dict(doc)
+            doc['_id'] = doc_id
+
+        # Must provide either '_rev' or doc_rev, if both they need to match
+        if '_rev' in doc:
+            if doc_rev is not None:
+                if doc_rev != doc['_rev']:
+                    raise Exception(
+                        'Mismatched parameters doc[\'_rev\']="{:s}" and doc_rev="{:s}"'.format(
+                            doc['_rev'],
+                            doc_id
+                        )
+                    )
+        else:
+            if doc_rev is None:
+                raise Exception(
+                    'Missing parameter doc[\'_rev\'] or doc_rev'
+                )
+
+            doc = dict(doc)
+            doc['_rev'] = doc_rev
+
         # Update the document
         try:
-            doc_id, doc_rev = database.save(doc)
+            new_doc_id, new_doc_rev = database.save(doc)
         except couchdb.http.ResourceConflict:
-            raise Exception('Document "{:s} was modified.'.format(doc['_id']))
+            raise Exception('Revision conflict for document "{:s}".'.format(doc['_id']))
 
         return {
-            'id': doc_id,
-            'rev': doc_rev
+            'id': new_doc_id,
+            'rev': new_doc_rev
         }
-
-    def delete_document(self, doc_id):
-        """ Delete a doc.
-        """
-        server = self._couchdb_server
-        database_users = server['_users']
-        docid_user = 'org.couchdb.user:{:s}'.format(self._couchdb_user)
-        dbname = '{:s}_tractdb'.format(self._couchdb_user)
-
-        # Confirm the user exists
-        if docid_user not in database_users:
-            raise Exception('User "{:s}" does not exist.'.format(self._couchdb_user))
-
-        # Confirm the database exists
-        if dbname not in server:
-            raise Exception('Database "{:s}" does not exist.'.format(dbname))
-
-        database = server[dbname]
-
-        # Confirm the document exists
-        if doc_id not in database:
-            raise Exception('Document "{:s}" does not exist.'.format(doc_id))
-
-        # Delete it
-        del database[doc_id]
 
     def list_documents(self):
         """ List the id of all the documents of the given account.

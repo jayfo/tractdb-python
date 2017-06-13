@@ -4,6 +4,7 @@ couchdb
 invoke==0.12.2
 jinja2
 nose
+pillow
 pip-tools
 pyyaml
 requests

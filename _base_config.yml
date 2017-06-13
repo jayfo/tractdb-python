@@ -36,7 +36,7 @@ config:
       compose_up_delay: 60
 
   package:
-    version: 0.1.11
+    version: 0.1.12
 
   readme:
     working_directory_windows: c:/devel/invoke-base

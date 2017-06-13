@@ -1,7 +1,7 @@
 # This file compiled from setup.py.in
 import setuptools
 
-VERSION = '0.1.11'
+VERSION = '0.1.12'
 
 setuptools.setup(
     name='tractdb',

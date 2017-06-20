@@ -1,123 +1,84 @@
-import base.docker.docker_commands
-import tractdb.client
-import unittest
+import nose.tools
+import tests.utilities
 
 
-TEST_ACCOUNT = 'test-account'
-TEST_ACCOUNT_PASSWORD = 'test-account-password'
-TEST_ROLE = 'test-role'
+class TestClientAccounts:
+    @classmethod
+    def setup_class(cls):
+        cls.utilities = tests.utilities.Utilities(cls)
 
+    def test_create_and_delete_account(self):
+        cls = type(self)
 
-def setup():
-    pass
+        # Get an admin
+        client_admin = cls.utilities.client_admin()
 
+        # If the account exists, it's left from a prior test
+        try:
+            client_admin.delete_account(
+                account=cls.utilities.test_account_name()
+            )
+        except Exception:
+            pass
 
-def teardown():
-    pass
-
-
-class TestServerAccounts(unittest.TestCase):
-    @property
-    def client_admin(self):
-        return tractdb.client.TractDBClient(
-            tractdb_url='http://{}:8080'.format(
-                base.docker.docker_commands.machine_ip()
-            ),
-            client_account='docker-couchdb-test-admin',
-            client_account_password='docker-couchdb-test-admin-password'
-        )
-
-    def setUp(self):
-        if TEST_ACCOUNT in self.client_admin.list_accounts():
-            self.client_admin.delete_account(TEST_ACCOUNT)
-
-    def tearDown(self):
-        if TEST_ACCOUNT in self.client_admin.list_accounts():
-            self.client_admin.delete_account(TEST_ACCOUNT)
-
-    def test_create_delete_account(self):
-        self.assertNotIn(
-            TEST_ACCOUNT,
-            self.client_admin.list_accounts()
-        )
-
-        self.client_admin.create_account(
-            TEST_ACCOUNT,
-            TEST_ACCOUNT_PASSWORD
-        )
-
-        self.assertIn(
-            TEST_ACCOUNT,
-            self.client_admin.list_accounts()
-        )
-
-        self.client_admin.delete_account(
-            TEST_ACCOUNT
-        )
-
-        self.assertNotIn(
-            TEST_ACCOUNT,
-            self.client_admin.list_accounts()
-        )
-
-    def test_add_delete_role(self):
-        self.client_admin.create_account(
-            TEST_ACCOUNT,
-            TEST_ACCOUNT_PASSWORD
-        )
-
-        self.assertNotIn(
-            TEST_ROLE,
-            self.client_admin.list_roles(
-                TEST_ACCOUNT
+        # The account does not exist
+        nose.tools.assert_false(
+            client_admin.exists_account(
+                account=cls.utilities.test_account_name()
             )
         )
 
-        self.client_admin.add_role(
-            TEST_ACCOUNT,
-            TEST_ROLE
+        nose.tools.assert_not_in(
+            cls.utilities.test_account_name(),
+            client_admin.get_accounts()
         )
 
-        self.assertIn(
-            TEST_ROLE,
-            self.client_admin.list_roles(
-                TEST_ACCOUNT
+        # Create it
+        client_admin.create_account(
+            account=cls.utilities.test_account_name(),
+            password=cls.utilities.test_account_password()
+        )
+
+        # Creating it again fails
+        nose.tools.assert_raises(
+            Exception,
+            client_admin.create_account,
+            account=cls.utilities.test_account_name(),
+            password=cls.utilities.test_account_password()
+        )
+
+        # The account exists
+        nose.tools.assert_true(
+            client_admin.exists_account(
+                account=cls.utilities.test_account_name()
             )
         )
 
-        self.client_admin.delete_role(
-            TEST_ACCOUNT,
-            TEST_ROLE
+        nose.tools.assert_in(
+            cls.utilities.test_account_name(),
+            client_admin.get_accounts()
         )
 
-        self.assertNotIn(
-            TEST_ROLE,
-            self.client_admin.list_roles(
-                TEST_ACCOUNT
+        # Delete it
+        client_admin.delete_account(
+            account=cls.utilities.test_account_name()
+        )
+
+        # Deleting it again fails
+        nose.tools.assert_raises(
+            Exception,
+            client_admin.delete_account,
+            account=cls.utilities.test_account_name()
+        )
+
+        # The account does not exist
+        nose.tools.assert_false(
+            client_admin.exists_account(
+                account=cls.utilities.test_account_name()
             )
         )
 
-        self.client_admin.delete_account(
-            TEST_ACCOUNT
-        )
-
-    def test_list_accounts(self):
-        self.assertIsInstance(
-            self.client_admin.list_accounts(),
-            list
-        )
-
-    def test_list_roles(self):
-        self.client_admin.create_account(
-            TEST_ACCOUNT,
-            TEST_ACCOUNT_PASSWORD
-        )
-
-        self.assertIsInstance(
-            self.client_admin.list_roles(TEST_ACCOUNT),
-            list
-        )
-
-        self.client_admin.delete_account(
-            TEST_ACCOUNT
+        nose.tools.assert_not_in(
+            cls.utilities.test_account_name(),
+            client_admin.get_accounts()
         )

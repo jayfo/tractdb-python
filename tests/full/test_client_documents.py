@@ -1,6 +1,7 @@
 import nose.tools
 import tests.utilities
 import tractdb.client
+import tractdb.client.documents
 
 
 class TestClientDocuments:
@@ -39,6 +40,97 @@ class TestClientDocuments:
 
         # Clean up our documents
         cls.utilities.delete_all_documents(client=cls.client)
+
+    def test_consistency(self):
+        cls = type(self)
+        client = cls.client
+
+        client_documents = tractdb.client.documents.TractDBClientDocuments(client=client)
+
+        # Start with consistent values
+        doc = {
+            '_id': 'id_value',
+            '_rev': 'rev_value'
+        }
+        doc_id = 'id_value'
+        doc_rev = 'rev_value'
+        doc, doc_id, doc_rev = client_documents._ensure_consistent(
+            doc=doc, doc_id=doc_id, doc_rev=doc_rev
+        )
+        nose.tools.assert_equal(doc['_id'], 'id_value')
+        nose.tools.assert_equal(doc['_rev'], 'rev_value')
+        nose.tools.assert_equal(doc_id, 'id_value')
+        nose.tools.assert_equal(doc_rev, 'rev_value')
+
+        # Blank dictionary
+        doc = {
+        }
+        doc, doc_id, doc_rev = client_documents._ensure_consistent(
+            doc=doc, doc_id=doc_id, doc_rev=doc_rev
+        )
+        nose.tools.assert_equal(doc['_id'], 'id_value')
+        nose.tools.assert_equal(doc['_rev'], 'rev_value')
+        nose.tools.assert_equal(doc_id, 'id_value')
+        nose.tools.assert_equal(doc_rev, 'rev_value')
+
+        # Blank parameters
+        doc_id = None
+        doc_rev = None
+        doc, doc_id, doc_rev = client_documents._ensure_consistent(
+            doc=doc, doc_id=doc_id, doc_rev=doc_rev
+        )
+        nose.tools.assert_equal(doc['_id'], 'id_value')
+        nose.tools.assert_equal(doc['_rev'], 'rev_value')
+        nose.tools.assert_equal(doc_id, 'id_value')
+        nose.tools.assert_equal(doc_rev, 'rev_value')
+
+        # Conflicting id
+        doc_id = 'mismatch'
+        nose.tools.assert_raises(
+            Exception,
+            client_documents._ensure_consistent,
+            doc=doc,
+            doc_id=doc_id,
+            doc_rev=doc_rev
+        )
+        doc_id = 'id_value'
+
+        # Conflict rev
+        doc_rev = 'mismatch'
+        nose.tools.assert_raises(
+            Exception,
+            client_documents._ensure_consistent,
+            doc=doc,
+            doc_id=doc_id,
+            doc_rev=doc_rev
+        )
+        doc_rev = 'rev_value'
+
+        # All blank id
+        del doc['_id']
+        doc_id = None
+        nose.tools.assert_raises(
+            Exception,
+            client_documents._ensure_consistent,
+            doc=doc,
+            doc_id=doc_id,
+            doc_rev=doc_rev
+        )
+        doc['_id'] = 'id_value'
+        doc_id = 'id_value'
+
+        # All blank rev
+        del doc['_rev']
+        doc_rev = None
+        nose.tools.assert_raises(
+            Exception,
+            client_documents._ensure_consistent,
+            doc=doc,
+            doc_id=doc_id,
+            doc_rev=doc_rev
+        )
+        doc['_rev'] = 'rev_value'
+        doc_rev = 'rev_value'
 
     def test_create_get_delete_document(self):
         cls = type(self)

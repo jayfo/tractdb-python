@@ -2,6 +2,33 @@ class TractDBClientDocuments(object):
     def __init__(self, *, client):
         self._client = client
 
+    def _ensure_consistent(self, *, doc, doc_id, doc_rev):
+        if doc is None:
+            doc = {
+                '_id': doc_id,
+                '_rev': doc_rev
+            }
+
+        if doc_id is None:
+            doc_id = doc.get('_id', None)
+            if doc_id is None:
+                raise Exception('Undefined doc_id.')
+        elif '_id' not in doc:
+            doc['_id'] = doc_id
+        elif doc['_id'] != doc_id:
+            raise Exception('Inconsistent doc[\'_id\'] and doc_id.')
+
+        if doc_rev is None:
+            doc_rev = doc.get('_rev', None)
+            if doc_rev is None:
+                raise Exception('Undefined doc_rev.')
+        elif '_rev' not in doc:
+            doc['_rev'] = doc_rev
+        elif doc['_rev'] != doc_rev:
+            raise Exception('Inconsistent doc[\'_rev\'] and doc_rev.')
+
+        return doc, doc_id, doc_rev
+
     def create_document(self, *, doc, doc_id=None):
         """ Create a document.
         """
@@ -49,33 +76,7 @@ class TractDBClientDocuments(object):
         """ Delete a document.
         """
 
-        # Ensure doc_id and doc['_id'] exist and are consistent
-        if doc_id:
-            if '_id' in doc:
-                if doc_id != doc['_id']:
-                    raise Exception('Document deletion failed.')
-            else:
-                doc = dict(doc)
-                doc['_id'] = doc_id
-        else:
-            if '_id' in doc:
-                doc_id = doc['_id']
-            else:
-                raise Exception('Document deletion failed.')
-
-        # Ensure doc_rev and doc['_rev'] exist and are consistent
-        if doc_rev:
-            if '_rev' in doc:
-                if doc_rev != doc['_rev']:
-                    raise Exception('Document deletion failed.')
-            else:
-                doc = dict(doc)
-                doc['_rev'] = doc_rev
-        else:
-            if '_rev' in doc:
-                doc_rev = doc['_rev']
-            else:
-                raise Exception('Document deletion failed.')
+        doc, doc_id, doc_rev = self._ensure_consistent(doc=doc, doc_id=doc_id, doc_rev=doc_rev)
 
         response = self._client.session.delete(
             '{}/{}/{}'.format(
@@ -150,33 +151,7 @@ class TractDBClientDocuments(object):
         """ Update a document.
         """
 
-        # Ensure doc_id and doc['_id'] exist and are consistent
-        if doc_id:
-            if '_id' in doc:
-                if doc_id != doc['_id']:
-                    raise Exception('Document update failed.')
-            else:
-                doc = dict(doc)
-                doc['_id'] = doc_id
-        else:
-            if '_id' in doc:
-                doc_id = doc['_id']
-            else:
-                raise Exception('Document update failed.')
-
-        # Ensure doc_rev and doc['_rev'] exist and are consistent
-        if doc_rev:
-            if '_rev' in doc:
-                if doc_rev != doc['_rev']:
-                    raise Exception('Document update failed.')
-            else:
-                doc = dict(doc)
-                doc['_rev'] = doc_rev
-        else:
-            if '_rev' in doc:
-                doc_rev = doc['_rev']
-            else:
-                raise Exception('Document update failed.')
+        doc, doc_id, doc_rev = self._ensure_consistent(doc=doc, doc_id=doc_id, doc_rev=doc_rev)
 
         response = self._client.session.put(
             '{}/{}/{}'.format(

@@ -2,7 +2,24 @@ class TractDBClientDocuments(object):
     def __init__(self, *, client):
         self._client = client
 
-    def _ensure_consistent(self, *, doc, doc_id, doc_rev):
+    def _ensure_consistent_id(self, *, doc, doc_id):
+        if doc is None:
+            doc = {
+                '_id': doc_id
+            }
+
+        if doc_id is None:
+            doc_id = doc.get('_id', None)
+            if doc_id is None:
+                raise Exception('Undefined doc_id.')
+        elif '_id' not in doc:
+            doc['_id'] = doc_id
+        elif doc['_id'] != doc_id:
+            raise Exception('Inconsistent doc[\'_id\'] and doc_id.')
+
+        return doc, doc_id
+
+    def _ensure_consistent_id_rev(self, *, doc, doc_id, doc_rev):
         if doc is None:
             doc = {
                 '_id': doc_id,
@@ -33,12 +50,7 @@ class TractDBClientDocuments(object):
         """ Create a document.
         """
 
-        # Ensure doc_id and doc['_id'] are consistent
-        if doc_id:
-            if ('_id' in doc) and (doc_id != doc['_id']):
-                raise Exception('Document creation failed.')
-        elif '_id' in doc:
-            doc_id = doc['_id']
+        doc, doc_id = self._ensure_consistent_id(doc=doc, doc_id=doc_id)
 
         # Make the post
         if doc_id:
@@ -76,7 +88,7 @@ class TractDBClientDocuments(object):
         """ Delete a document.
         """
 
-        doc, doc_id, doc_rev = self._ensure_consistent(doc=doc, doc_id=doc_id, doc_rev=doc_rev)
+        doc, doc_id, doc_rev = self._ensure_consistent_id_rev(doc=doc, doc_id=doc_id, doc_rev=doc_rev)
 
         response = self._client.session.delete(
             '{}/{}/{}'.format(
@@ -151,7 +163,7 @@ class TractDBClientDocuments(object):
         """ Update a document.
         """
 
-        doc, doc_id, doc_rev = self._ensure_consistent(doc=doc, doc_id=doc_id, doc_rev=doc_rev)
+        doc, doc_id, doc_rev = self._ensure_consistent_id_rev(doc=doc, doc_id=doc_id, doc_rev=doc_rev)
 
         response = self._client.session.put(
             '{}/{}/{}'.format(

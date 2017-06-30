@@ -41,7 +41,63 @@ class TestClientDocuments:
         # Clean up our documents
         cls.utilities.delete_all_documents(client=cls.client)
 
-    def test_consistency(self):
+    def test_consistency_id(self):
+        cls = type(self)
+        client = cls.client
+
+        client_documents = tractdb.client.documents.TractDBClientDocuments(client=client)
+
+        # Start with consistent values
+        doc = {
+            '_id': 'id_value'
+        }
+        doc_id = 'id_value'
+        doc, doc_id = client_documents._ensure_consistent_id(
+            doc=doc, doc_id=doc_id
+        )
+        nose.tools.assert_equal(doc['_id'], 'id_value')
+        nose.tools.assert_equal(doc_id, 'id_value')
+
+        # Blank dictionary
+        doc = {
+        }
+        doc, doc_id = client_documents._ensure_consistent_id(
+            doc=doc, doc_id=doc_id
+        )
+        nose.tools.assert_equal(doc['_id'], 'id_value')
+        nose.tools.assert_equal(doc_id, 'id_value')
+
+        # Blank parameters
+        doc_id = None
+        doc, doc_id = client_documents._ensure_consistent_id(
+            doc=doc, doc_id=doc_id
+        )
+        nose.tools.assert_equal(doc['_id'], 'id_value')
+        nose.tools.assert_equal(doc_id, 'id_value')
+
+        # Conflicting id
+        doc_id = 'mismatch'
+        nose.tools.assert_raises(
+            Exception,
+            client_documents._ensure_consistent_id,
+            doc=doc,
+            doc_id=doc_id
+        )
+        doc_id = 'id_value'
+
+        # All blank id
+        del doc['_id']
+        doc_id = None
+        nose.tools.assert_raises(
+            Exception,
+            client_documents._ensure_consistent_id,
+            doc=doc,
+            doc_id=doc_id
+        )
+        doc['_id'] = 'id_value'
+        doc_id = 'id_value'
+
+    def test_consistency_id_rev(self):
         cls = type(self)
         client = cls.client
 
@@ -54,7 +110,7 @@ class TestClientDocuments:
         }
         doc_id = 'id_value'
         doc_rev = 'rev_value'
-        doc, doc_id, doc_rev = client_documents._ensure_consistent(
+        doc, doc_id, doc_rev = client_documents._ensure_consistent_id_rev(
             doc=doc, doc_id=doc_id, doc_rev=doc_rev
         )
         nose.tools.assert_equal(doc['_id'], 'id_value')
@@ -65,7 +121,7 @@ class TestClientDocuments:
         # Blank dictionary
         doc = {
         }
-        doc, doc_id, doc_rev = client_documents._ensure_consistent(
+        doc, doc_id, doc_rev = client_documents._ensure_consistent_id_rev(
             doc=doc, doc_id=doc_id, doc_rev=doc_rev
         )
         nose.tools.assert_equal(doc['_id'], 'id_value')
@@ -76,7 +132,7 @@ class TestClientDocuments:
         # Blank parameters
         doc_id = None
         doc_rev = None
-        doc, doc_id, doc_rev = client_documents._ensure_consistent(
+        doc, doc_id, doc_rev = client_documents._ensure_consistent_id_rev(
             doc=doc, doc_id=doc_id, doc_rev=doc_rev
         )
         nose.tools.assert_equal(doc['_id'], 'id_value')
@@ -88,7 +144,7 @@ class TestClientDocuments:
         doc_id = 'mismatch'
         nose.tools.assert_raises(
             Exception,
-            client_documents._ensure_consistent,
+            client_documents._ensure_consistent_id_rev,
             doc=doc,
             doc_id=doc_id,
             doc_rev=doc_rev
@@ -99,7 +155,7 @@ class TestClientDocuments:
         doc_rev = 'mismatch'
         nose.tools.assert_raises(
             Exception,
-            client_documents._ensure_consistent,
+            client_documents._ensure_consistent_id_rev,
             doc=doc,
             doc_id=doc_id,
             doc_rev=doc_rev
@@ -111,7 +167,7 @@ class TestClientDocuments:
         doc_id = None
         nose.tools.assert_raises(
             Exception,
-            client_documents._ensure_consistent,
+            client_documents._ensure_consistent_id_rev,
             doc=doc,
             doc_id=doc_id,
             doc_rev=doc_rev
@@ -124,7 +180,7 @@ class TestClientDocuments:
         doc_rev = None
         nose.tools.assert_raises(
             Exception,
-            client_documents._ensure_consistent,
+            client_documents._ensure_consistent_id_rev,
             doc=doc,
             doc_id=doc_id,
             doc_rev=doc_rev

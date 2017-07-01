@@ -11,6 +11,7 @@ setuptools.setup(
     url='https://tractdb.org',
     packages=[
         'tractdb',
+        'tractdb.client',
         'tractdb.server'
     ],
     install_requires=[

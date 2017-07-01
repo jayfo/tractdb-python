@@ -1,7 +1,7 @@
 # This file compiled from setup.py.in
 import setuptools
 
-VERSION = '0.1.13'
+VERSION = '0.1.14'
 
 setuptools.setup(
     name='tractdb',
@@ -10,6 +10,7 @@ setuptools.setup(
     url='https://tractdb.org',
     packages=[
         'tractdb',
+        'tractdb.client',
         'tractdb.server'
     ],
     install_requires=[
